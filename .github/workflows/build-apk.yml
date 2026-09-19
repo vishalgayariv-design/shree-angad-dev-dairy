@@ -14,10 +14,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract Android project
+            - name: Extract Android project
         run: |
           mkdir -p project
-          unzip -q ./*.zip -d project
+          ZIP=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
+          echo "ZIP=$ZIP"
+          if [ -z "$ZIP" ]; then
+            echo "No ZIP file found"
+            exit 1
+          fi
+          unzip -q "$ZIP" -d project
 
       - name: Find Android project
         run: |
