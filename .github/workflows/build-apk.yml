@@ -14,51 +14,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-            - name: Extract Android project
-        run: |
-          mkdir -p project
-          ZIP=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
-          echo "ZIP=$ZIP"
-          if [ -z "$ZIP" ]; then
-            echo "No ZIP file found"
-            exit 1
-          fi
-          unzip -q "$ZIP" -d project
-
-      - name: Find Android project
-        run: |
-          SETTINGS=$(find project -name settings.gradle -print -quit)
-          if [ -z "$SETTINGS" ]; then
-            echo "settings.gradle not found"
-            exit 1
-          fi
-          ROOT=$(dirname "$SETTINGS")
-          echo "ANDROID_ROOT=$ROOT" >> "$GITHUB_ENV"
-          echo "Android project: $ROOT"
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK
+      - name: Extract Android project
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p project
+          ZIP=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
+          echo "ZIP=$ZIP"
+
+          if [ -z "$ZIP" ]; then
+            echo "No ZIP file found"
+            exit 1
+          fi
+
+          unzip -q "$ZIP" -d project
+
+      - name: Find Android project
+        run: |
+          SETTINGS=$(find project -type f \( -name 'settings.gradle' -o -name 'settings.gradle.kts' \) | head -n 1)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "settings.gradle not found"
+            exit 1
+          fi
+
+          ROOT=$(dirname "$SETTINGS")
+          echo "ANDROID_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Android project: $ROOT"
 
       - name: Build APK
         run: |
           cd "$ANDROID_ROOT"
-          gradle assembleDebug --stacktrace
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
