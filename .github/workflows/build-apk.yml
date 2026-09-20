@@ -1,7 +1,6 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -23,28 +22,26 @@ jobs:
       - name: Extract Android project
         run: |
           mkdir -p project
-          ZIP=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
+          ZIP=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
           echo "ZIP=$ZIP"
-
           if [ -z "$ZIP" ]; then
             echo "No ZIP file found"
             exit 1
           fi
-
           unzip -q "$ZIP" -d project
 
-      - name: Find Android project
+      - name: Find Gradle wrapper
         run: |
-          SETTINGS=$(find project -type f \( -name 'settings.gradle' -o -name 'settings.gradle.kts' \) | head -n 1)
-
-          if [ -z "$SETTINGS" ]; then
-            echo "settings.gradle not found"
+          GRADLEW=$(find project -type f -name "gradlew" | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "gradlew not found"
+            find project -maxdepth 4 -type f | head -100
             exit 1
           fi
 
-          ROOT=$(dirname "$SETTINGS")
-          echo "ANDROID_ROOT=$ROOT" >> "$GITHUB_ENV"
-          echo "Android project: $ROOT"
+          ANDROID_ROOT=$(dirname "$GRADLEW")
+          echo "ANDROID_ROOT=$ANDROID_ROOT" >> "$GITHUB_ENV"
+          echo "Gradle wrapper found at: $GRADLEW"
 
       - name: Build APK
         run: |
@@ -56,4 +53,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Shree-Angad-Dev-Dairy-APK
-          path: ${{ env.ANDROID_ROOT }}/app/build/outputs/apk/debug/app-debug.apk
+          path: "${{ env.ANDROID_ROOT }}/app/build/outputs/apk/debug/app-debug.apk"
