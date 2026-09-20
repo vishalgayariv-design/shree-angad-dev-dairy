@@ -19,38 +19,55 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Extract Android project
         run: |
           mkdir -p project
           ZIP=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
-          echo "ZIP=$ZIP"
+
           if [ -z "$ZIP" ]; then
             echo "No ZIP file found"
             exit 1
           fi
+
+          echo "Using ZIP: $ZIP"
           unzip -q "$ZIP" -d project
 
-      - name: Find Gradle wrapper
+      - name: Find Android project
         run: |
-          GRADLEW=$(find project -type f -name "gradlew" | head -n 1)
-          if [ -z "$GRADLEW" ]; then
-            echo "gradlew not found"
-            find project -maxdepth 4 -type f | head -100
+          SETTINGS=$(find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -n 1)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "settings.gradle not found"
             exit 1
           fi
 
-          ANDROID_ROOT=$(dirname "$GRADLEW")
-          echo "ANDROID_ROOT=$ANDROID_ROOT" >> "$GITHUB_ENV"
-          echo "Gradle wrapper found at: $GRADLEW"
+          ROOT=$(dirname "$SETTINGS")
+          echo "ANDROID_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Android project: $ROOT"
+
+      - name: Prepare Gradle Wrapper
+        run: |
+          cd "$ANDROID_ROOT"
+
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.9
+          fi
+
+          chmod +x gradlew
 
       - name: Build APK
         run: |
           cd "$ANDROID_ROOT"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Shree-Angad-Dev-Dairy-APK
-          path: "${{ env.ANDROID_ROOT }}/app/build/outputs/apk/debug/app-debug.apk"
+          path: |
+            ${{ env.ANDROID_ROOT }}/app/build/outputs/apk/debug/*.apk
