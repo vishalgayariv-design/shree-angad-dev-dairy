@@ -59,7 +59,53 @@ jobs:
           fi
 
           chmod +x gradlew
+      - name: Fix Google Maps links
+        run: |
+          cd "$ANDROID_ROOT"
+          python3 - <<'PY'
+          from pathlib import Path
 
+          p = next(Path("app/src/main/java").rglob("MainActivity.java"))
+          s = p.read_text()
+
+          if "import android.content.Intent;" not in s:
+              s = s.replace(
+                  "import android.app.Activity;",
+                  "import android.app.Activity;\nimport android.content.Intent;\nimport android.net.Uri;\nimport android.webkit.WebResourceRequest;"
+              )
+
+          old = "webView.setWebViewClient(new WebViewClient());"
+
+          new = """webView.setWebViewClient(new WebViewClient() {
+              @Override
+              public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                  Uri uri = request.getUrl();
+                  String url = uri.toString();
+
+                  if (url.startsWith("intent://") ||
+                      url.startsWith("https://www.google.com/maps") ||
+                      url.startsWith("http://maps.google.com") ||
+                      url.startsWith("geo:")) {
+                      try {
+                          Intent intent = url.startsWith("intent://")
+                                  ? Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                                  : new Intent(Intent.ACTION_VIEW, uri);
+                          startActivity(intent);
+                      } catch (Exception ignored) {}
+                      return true;
+                  }
+
+                  return false;
+              }
+          });"""
+
+          if old not in s:
+              raise SystemExit("WebViewClient line not found")
+
+          s = s.replace(old, new)
+          p.write_text(s)
+          print("Google Maps WebView fix applied:", p)
+          PY
       - name: Build APK
         run: |
           cd "$ANDROID_ROOT"
